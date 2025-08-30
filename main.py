@@ -1,34 +1,49 @@
-import discord
+import discord, httpx
 from discord.ext import commands
+from dotenv import load_dotenv
+from os import getenv
 import json
 
-# Get configuration.json
-with open("configuration.json", "r") as config:
-    data = json.load(config)
-    token = data["token"]
-    prefix = data["prefix"]
+load_dotenv(".env")
 
-bot = commands.Bot(prefix, intents = intents)
+TOKEN = getenv("DISCORD_TOKEN")
+prefix = "/"
+base_url = "https://weao.xyz/api"
 
-# Load cogs
-initial_extensions = [
-    "Cogs.help",
-    "Cogs.ping"
-]
+intents = discord.Intents.default()
+intents.message_content = True
 
-print(initial_extensions)
+bot = commands.Bot(command_prefix=prefix, intents=intents)
+tree = bot.tree
 
-if __name__ == '__main__':
-    for extension in initial_extensions:
-        try:
-            bot.load_extension(extension)
-        except Exception as e:
-            print(f"Failed to load extension {extension}")
+#####
+
+# intr -> interaction
+
+#####
+
+@tree.command(name="help")
+async def help(intr: discord.Interaction):
+    await intr.response.send_message(f"Hello !")
+
+
+@tree.command(name="rbx-version") # <- fetch current version for windows & macOs
+async def fetch_version(intr: discord.Interaction):
+    data = httpx.get(f"{base_url}/versions/current").json()
+    message = f"""
+        *Windows: __{data['Windows']}__, Date: {data['WindowsDate']}*
+        *MacOS: __{data['Mac']}__, Date: {data['MacDate']}*
+    """
+    embed = discord.Embed(color=discord.Color.dark_purple(), title="**Windows & MacOS Roblox Version**", description=message)
+    await intr.response.send_message(embed=embed)
 
 @bot.event
 async def on_ready():
     print(f"We have logged in as {bot.user}")
+    
+    await bot.tree.sync()
+    
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name =f"{bot.command_prefix}help"))
     print(discord.__version__)
 
-bot.run(token)
+bot.run(TOKEN)
