@@ -1,5 +1,6 @@
 import discord, httpx
 from discord.ext import commands
+from discord import app_commands
 from dotenv import load_dotenv
 from os import getenv
 import json
@@ -22,20 +23,41 @@ tree = bot.tree
 
 #####
 
+def format_message(data: dict):
+    return (
+        f"*Windows: __{data.get('Windows', 'N/A')}__, Date: {data.get('WindowsDate', 'N/A')}*\n"
+        f"*MacOS: __{data.get('Mac', 'N/A')}__, Date: {data.get('MacDate', 'N/A')}*"
+    )
+
 @tree.command(name="help")
 async def help(intr: discord.Interaction):
     await intr.response.send_message(f"Hello !")
 
 
 @tree.command(name="rbx-version") # <- fetch current version for windows & macOs
-async def fetch_version(intr: discord.Interaction):
-    data = httpx.get(f"{base_url}/versions/current").json()
-    message = f"""
-        *Windows: __{data['Windows']}__, Date: {data['WindowsDate']}*
-        *MacOS: __{data['Mac']}__, Date: {data['MacDate']}*
-    """
+@app_commands.choices(type=[
+    app_commands.Choice(name="current", value="current"),
+    app_commands.Choice(name="past", value="past"),
+    app_commands.Choice(name="future", value="future")
+])
+async def fetch_version(intr: discord.Interaction, type : app_commands.Choice[str]):
+    async with httpx.AsyncClient() as client:
+        res = await client.get(f"{base_url}/versions/{type.value}")
+        data = res.json()
+        
+    message = format_message(data=data)
+    
     embed = discord.Embed(color=discord.Color.dark_purple(), title="**Windows & MacOS Roblox Version**", description=message)
     await intr.response.send_message(embed=embed)
+
+@tree.command(name="exploits")
+async def fetch_exps(intr: discord.Interaction):
+    async with httpx.AsyncClient() as client:
+        res = await client.get(f"{base_url}/status/exploits")
+        data = res.json()
+    
+    
+    await intr.response.send_message()
 
 @bot.event
 async def on_ready():
